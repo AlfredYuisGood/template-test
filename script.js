@@ -1,64 +1,76 @@
-const quoteContainer = document.getElementById('quote-container');
-const quoteText = document.getElementById('quote');
-const authorText = document.getElementById('author');
-const twitterBtn = document.getElementById('twitter');
-const newQuoteBtn = document.getElementById('new-quote');
+const imageContainer = document.getElementById('image-container');
 const loader = document.getElementById('loader');
 
-// Loading Spinner Shown
-function loading() {
-  loader.hidden = false;
-  quoteContainer.hidden = true;
+let ready = false;
+let imagesLoaded = 0;
+let totalImages = 0;
+let photosArray = [];
+
+// Helper function to set attribute on DOM elememts
+function setAttributes(element, attributes) {
+  for (const key in attributes) {
+    element.setAttribute(key, attributes[key]);
+  }
 }
 
-// Remove Loading Spinner
-function complete() {
-  if (!loader.hidden) {
-    quoteContainer.hidden = false;
+// Unsplash API
+const count = 30;
+const apiKey = 'TFaxGgtSd9GAiMndIwlcEqVOHN_Vy2ojKSgNODzeTGo';
+const apiUrl = `https://api.unsplash.com/photos/random/?client_id=${apiKey}&count=${count}`;
+
+// Check if all images were loaded
+function imageLoaded(){
+  imagesLoaded++;
+  if(imagesLoaded === totalImages){
+    ready = true;
     loader.hidden = true;
   }
 }
 
-// Get Quote From API
-async function getQuote() {
-  loading();
-  // We need to use a Proxy URL to make our API call in order to avoid a CORS error
-  const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-  const apiUrl = 'https://api.forismatic.com/api/1.0/?method=getQuote&lang=en&format=json';
+// Create elements for links and photos, add to DOM
+function displayPhotos(){
+  imagesLoaded = 0;
+  totalImages = photosArray.length;
+  photosArray.forEach((photo) => {
+    // Create <a> to link to Unsplash
+    const item = document.createElement('a');
+    setAttributes(item, {
+      href: photo.links.html,
+      target: '_blank',
+    });
+    // Create <img> for photo
+    const img = document.createElement('img');
+    setAttributes(img, {
+      src: photo.urls.regular,
+      alt: photo.alt_desctiption,
+      title: photo.alt_desctiption,
+    });
+    //Event Listener, check when each is finishing loading
+    img.addEventListener('load', imageLoaded);
+
+    // Put <img> inside <a>, then put both inside imageContainer Element
+    item.appendChild(img);
+    imageContainer.appendChild(item);
+  });
+}
+
+// Get photo from Unsplash API
+async function getPhotos(){
   try {
-    const response = await fetch(proxyUrl + apiUrl);
-    const data = await response.json();
-    // Check if Author field is blank and replace it with 'Unknown'
-    if (data.quoteAuthor === '') {
-      authorText.innerText = 'Unknown';
-    } else {
-      authorText.innerText = data.quoteAuthor;
-    }
-    // Dynamically reduce font size for long quotes
-    if (data.quoteText.length > 120) {
-      quoteText.classList.add('long-quote');
-    } else {
-      quoteText.classList.remove('long-quote');
-    }
-    quoteText.innerText = data.quoteText;
-    // Stop Loading, Show Quote
-    complete();
+    const response = await fetch(apiUrl);
+    photosArray = await response.json();
+    displayPhotos();
   } catch (error) {
-    getQuote();
+    
   }
 }
 
-// Tweet Quote
-function tweetQuote() {
-  const quote = quoteText.innerText;
-  const author = authorText.innerText;
-  const twitterUrl = `https://twitter.com/intent/tweet?text=${quote} - ${author}`;
-  window.open(twitterUrl, '_blank');
-}
+// Check to see if scrolling near the bottom of page, load more photos
+window.addEventListener('scroll', () => {
+  if(window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000 && ready){
+    ready = false;
+    getPhotos();
+  }
+});
 
-// Event Listeners
-newQuoteBtn.addEventListener('click', getQuote);
-twitterBtn.addEventListener('click', tweetQuote);
-
-// On Load
-getQuote();
+getPhotos();
